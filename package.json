@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Hello Angular2",
   "scripts": {
-    "start": "webpack-dev-server --config config/webpack.dev.js --inline --progress --port 8080",
+    "start": "webpack-dev-server --config config/webpack.dev.js --progress",
     "test": "karma start",
     "build": "webpack --config config/webpack.dev.js --progress --profile --bail",
     "webpack": "webpack",
