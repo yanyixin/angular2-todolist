@@ -1,0 +1,58 @@
+{
+  "name": "angular2-dream",
+  "version": "1.0.0",
+  "description": "Hello Angular2",
+  "scripts": {
+    "start": "webpack-dev-server --config config/webpack.dev.js --inline --progress --port 8080",
+    "test": "karma start",
+    "build": "webpack --config config/webpack.dev.js --progress --profile --bail",
+    "webpack": "webpack",
+    "rimraf": "rimraf"
+  },
+  "keywords": [
+    "angular2",
+    "webpack"
+  ],
+  "author": "yanmeng@hujiang.com",
+  "license": "MIT",
+  "dependencies": {
+    "@angular/common": "~2.4.0",
+    "@angular/compiler": "~2.4.0",
+    "@angular/core": "~2.4.0",
+    "@angular/forms": "~2.4.0",
+    "@angular/http": "~2.4.0",
+    "@angular/platform-browser": "~2.4.0",
+    "@angular/platform-browser-dynamic": "~2.4.0",
+    "@angular/router": "~3.4.0",
+    "core-js": "^2.4.1",
+    "html-webpack-plugin": "^2.28.0",
+    "reflect-metadata": "^0.1.8",
+    "rxjs": "5.0.1",
+    "zone.js": "^0.7.4"
+  },
+  "devDependencies": {
+    "@angularclass/hmr-loader": "^3.0.2",
+    "@types/jasmine": "^2.5.43",
+    "@types/node": "^6.0.45",
+    "angular2-template-loader": "^0.6.0",
+    "awesome-typescript-loader": "^3.0.4",
+    "bootstrap": "^3.3.7",
+    "bootstrap-sass": "^3.3.7",
+    "css-loader": "^0.26.1",
+    "extract-text-webpack-plugin": "2.0.0-beta.5",
+    "file-loader": "^0.9.0",
+    "font-awesome": "^4.7.0",
+    "html-loader": "^0.4.3",
+    "html-webpack-plugin": "^2.16.1",
+    "postcss-loader": "^1.3.1",
+    "raw-loader": "^0.5.1",
+    "style-loader": "^0.13.1",
+    "to-string-loader": "^1.1.5",
+    "ts-helpers": "^1.1.2",
+    "typescript": "^2.2.0",
+    "url-loader": "^0.5.7",
+    "webpack": "2.2.0",
+    "webpack-dev-server": "2.2.0-rc.0",
+    "webpack-merge": "^2.4.0"
+  }
+}
