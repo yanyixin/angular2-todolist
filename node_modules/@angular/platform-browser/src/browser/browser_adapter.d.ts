@@ -16,9 +16,9 @@ export declare class BrowserDomAdapter extends GenericBrowserDomAdapter {
     log(error: string): void;
     logGroup(error: string): void;
     logGroupEnd(): void;
-    attrToPropMap: any;
-    query(selector: string): any;
-    querySelector(el: Element, selector: string): HTMLElement;
+    readonly attrToPropMap: any;
+    contains(nodeA: any, nodeB: any): boolean;
+    querySelector(el: Element, selector: string): any;
     querySelectorAll(el: any, selector: string): any[];
     on(el: Node, evt: any, listener: any): void;
     onAndCancel(el: Node, evt: any, listener: any): Function;
@@ -44,9 +44,9 @@ export declare class BrowserDomAdapter extends GenericBrowserDomAdapter {
     removeChild(el: Node, node: Node): void;
     replaceChild(el: Node, newChild: Node, oldChild: Node): void;
     remove(node: Node): Node;
-    insertBefore(el: Node, node: Node): void;
-    insertAllBefore(el: Node, nodes: Node[]): void;
-    insertAfter(el: Node, node: any): void;
+    insertBefore(parent: Node, ref: Node, node: Node): void;
+    insertAllBefore(parent: Node, ref: Node, nodes: Node[]): void;
+    insertAfter(parent: Node, ref: Node, node: any): void;
     setInnerHTML(el: Element, value: string): void;
     getText(el: Node): string;
     setText(el: Node, value: string): void;
@@ -87,10 +87,9 @@ export declare class BrowserDomAdapter extends GenericBrowserDomAdapter {
     removeAttributeNS(element: Element, ns: string, name: string): void;
     templateAwareRoot(el: Node): any;
     createHtmlDocument(): HTMLDocument;
-    defaultDoc(): HTMLDocument;
     getBoundingClientRect(el: Element): any;
-    getTitle(): string;
-    setTitle(newTitle: string): void;
+    getTitle(doc: Document): string;
+    setTitle(doc: Document, newTitle: string): void;
     elementMatches(n: any, selector: string): boolean;
     isTemplateElement(el: Node): boolean;
     isTextNode(node: Node): boolean;
@@ -102,10 +101,10 @@ export declare class BrowserDomAdapter extends GenericBrowserDomAdapter {
     adoptNode(node: Node): any;
     getHref(el: Element): string;
     getEventKey(event: any): string;
-    getGlobalEventTarget(target: string): EventTarget;
+    getGlobalEventTarget(doc: Document, target: string): EventTarget;
     getHistory(): History;
     getLocation(): Location;
-    getBaseHref(): string;
+    getBaseHref(doc: Document): string;
     resetBaseElement(): void;
     getUserAgent(): string;
     setData(element: Element, name: string, value: string): void;
@@ -119,3 +118,4 @@ export declare class BrowserDomAdapter extends GenericBrowserDomAdapter {
     setCookie(name: string, value: string): void;
 }
 export declare function parseCookieValue(cookieStr: string, name: string): string;
+export declare function setValueOnPath(global: any, path: string, value: any): void;

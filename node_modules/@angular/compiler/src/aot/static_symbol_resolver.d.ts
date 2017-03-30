@@ -20,7 +20,7 @@ export declare class ResolvedStaticSymbol {
 export interface StaticSymbolResolverHost {
     /**
      * Return a ModuleMetadata for the given module.
-     * Angular 2 CLI will produce this metadata for a module whenever a .d.ts files is
+     * Angular CLI will produce this metadata for a module whenever a .d.ts files is
      * produced and the module has exported variables or classes with decorators. Module metadata can
      * also be produced directly from TypeScript sources by using MetadataCollector in tools/metadata.
      *
@@ -40,6 +40,10 @@ export interface StaticSymbolResolverHost {
 /**
  * This class is responsible for loading metadata per symbol,
  * and normalizing references between symbols.
+ *
+ * Internally, it only uses symbols without members,
+ * and deduces the values for symbols with members based
+ * on these symbols.
  */
 export declare class StaticSymbolResolver {
     private host;
@@ -49,8 +53,39 @@ export declare class StaticSymbolResolver {
     private metadataCache;
     private resolvedSymbols;
     private resolvedFilePaths;
+    private importAs;
+    private symbolResourcePaths;
+    private symbolFromFile;
     constructor(host: StaticSymbolResolverHost, staticSymbolCache: StaticSymbolCache, summaryResolver: SummaryResolver<StaticSymbol>, errorRecorder?: (error: any, fileName: string) => void);
     resolveSymbol(staticSymbol: StaticSymbol): ResolvedStaticSymbol;
+    /**
+     * getImportAs produces a symbol that can be used to import the given symbol.
+     * The import might be different than the symbol if the symbol is exported from
+     * a library with a summary; in which case we want to import the symbol from the
+     * ngfactory re-export instead of directly to avoid introducing a direct dependency
+     * on an otherwise indirect dependency.
+     *
+     * @param staticSymbol the symbol for which to generate a import symbol
+     */
+    getImportAs(staticSymbol: StaticSymbol): StaticSymbol;
+    /**
+     * getResourcePath produces the path to the original location of the symbol and should
+     * be used to determine the relative location of resource references recorded in
+     * symbol metadata.
+     */
+    getResourcePath(staticSymbol: StaticSymbol): string;
+    /**
+     * getTypeArity returns the number of generic type parameters the given symbol
+     * has. If the symbol is not a type the result is null.
+     */
+    getTypeArity(staticSymbol: StaticSymbol): number;
+    recordImportAs(sourceSymbol: StaticSymbol, targetSymbol: StaticSymbol): void;
+    /**
+     * Invalidate all information derived from the given file.
+     *
+     * @param fileName the file to invalidate
+     */
+    invalidateFile(fileName: string): void;
     private _resolveSymbolMembers(staticSymbol);
     private _resolveSymbolFromSummary(staticSymbol);
     /**
@@ -59,11 +94,13 @@ export declare class StaticSymbolResolver {
      *
      * @param declarationFile the absolute path of the file where the symbol is declared
      * @param name the name of the type.
+     * @param members a symbol for a static member of the named type
      */
     getStaticSymbol(declarationFile: string, name: string, members?: string[]): StaticSymbol;
     getSymbolsOf(filePath: string): StaticSymbol[];
     private _createSymbolsOf(filePath);
-    private createResolvedSymbol(sourceSymbol, metadata);
+    private createResolvedSymbol(sourceSymbol, topLevelPath, topLevelSymbolNames, metadata);
+    private createExport(sourceSymbol, targetSymbol);
     private reportError(error, context, path?);
     /**
      * @param module an absolute path to a module file.
@@ -72,3 +109,4 @@ export declare class StaticSymbolResolver {
     getSymbolByModule(module: string, symbolName: string, containingFile?: string): StaticSymbol;
     private resolveModule(module, containingFile);
 }
+export declare function unescapeIdentifier(identifier: string): string;

@@ -1,11 +1,18 @@
-import { ReflectorReader } from '../private_import_core';
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+import { ɵReflectorReader } from '@angular/core';
 import { StaticSymbol } from './static_symbol';
 import { StaticSymbolResolver } from './static_symbol_resolver';
 /**
  * A static reflector implements enough of the Reflector API that is necessary to compile
  * templates statically.
  */
-export declare class StaticReflector implements ReflectorReader {
+export declare class StaticReflector implements ɵReflectorReader {
     private symbolResolver;
     private errorRecorder;
     private annotationCache;
@@ -13,6 +20,7 @@ export declare class StaticReflector implements ReflectorReader {
     private parameterCache;
     private methodCache;
     private conversionMap;
+    private injectionToken;
     private opaqueToken;
     constructor(symbolResolver: StaticSymbolResolver, knownMetadataClasses?: {
         name: string;
@@ -24,7 +32,8 @@ export declare class StaticReflector implements ReflectorReader {
         fn: any;
     }[], errorRecorder?: (error: any, fileName: string) => void);
     importUri(typeOrFunc: StaticSymbol): string;
-    resolveIdentifier(name: string, moduleUrl: string): StaticSymbol;
+    resourceUri(typeOrFunc: StaticSymbol): string;
+    resolveIdentifier(name: string, moduleUrl: string, members: string[]): StaticSymbol;
     findDeclaration(moduleUrl: string, name: string, containingFile?: string): StaticSymbol;
     findSymbolDeclaration(symbol: StaticSymbol): StaticSymbol;
     resolveEnum(enumIdentifier: any, name: string): any;
@@ -47,5 +56,9 @@ export declare class StaticReflector implements ReflectorReader {
      */
     getStaticSymbol(declarationFile: string, name: string, members?: string[]): StaticSymbol;
     private reportError(error, context, path?);
+    /**
+     * Simplify but discard any errors
+     */
+    private trySimplify(context, value);
     private getTypeMetadata(type);
 }

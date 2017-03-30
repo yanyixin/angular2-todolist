@@ -5,8 +5,9 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
-import { Observable } from '../facade/async';
+import { Observable } from 'rxjs/Observable';
 import { AbstractControl } from '../model';
+import { ValidationErrors } from './validators';
 /**
  * Base class for control directives.
  *
@@ -15,23 +16,21 @@ import { AbstractControl } from '../model';
  * @stable
  */
 export declare abstract class AbstractControlDirective {
-    control: AbstractControl;
-    value: any;
-    valid: boolean;
-    invalid: boolean;
-    pending: boolean;
-    errors: {
-        [key: string]: any;
-    };
-    pristine: boolean;
-    dirty: boolean;
-    touched: boolean;
-    untouched: boolean;
-    disabled: boolean;
-    enabled: boolean;
-    statusChanges: Observable<any>;
-    valueChanges: Observable<any>;
-    path: string[];
+    readonly control: AbstractControl;
+    readonly value: any;
+    readonly valid: boolean;
+    readonly invalid: boolean;
+    readonly pending: boolean;
+    readonly errors: ValidationErrors | null;
+    readonly pristine: boolean;
+    readonly dirty: boolean;
+    readonly touched: boolean;
+    readonly untouched: boolean;
+    readonly disabled: boolean;
+    readonly enabled: boolean;
+    readonly statusChanges: Observable<any>;
+    readonly valueChanges: Observable<any>;
+    readonly path: string[];
     reset(value?: any): void;
     hasError(errorCode: string, path?: string[]): boolean;
     getError(errorCode: string, path?: string[]): any;

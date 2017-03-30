@@ -7,7 +7,7 @@
  */
 
 import {patchTimer} from '../common/timers';
-import {patchClass, patchMethod, patchPrototype, zoneSymbol} from '../common/utils';
+import {findEventTask, patchClass, patchEventTargetMethods, patchMethod, patchPrototype, zoneSymbol} from '../common/utils';
 
 import {propertyPatch} from './define-property';
 import {eventTargetPatch} from './event-target';
@@ -17,7 +17,8 @@ import {registerElementPatch} from './register-element';
 const set = 'set';
 const clear = 'clear';
 const blockingMethods = ['alert', 'prompt', 'confirm'];
-const _global = typeof window === 'object' && window || typeof self === 'object' && self || global;
+const _global: any =
+    typeof window !== 'undefined' && window || typeof self !== 'undefined' && self || global;
 
 patchTimer(_global, set, clear, 'Timeout');
 patchTimer(_global, set, clear, 'Interval');
@@ -36,6 +37,11 @@ for (let i = 0; i < blockingMethods.length; i++) {
 }
 
 eventTargetPatch(_global);
+// patch XMLHttpRequestEventTarget's addEventListener/removeEventListener
+const XMLHttpRequestEventTarget = (_global as any)['XMLHttpRequestEventTarget'];
+if (XMLHttpRequestEventTarget && XMLHttpRequestEventTarget.prototype) {
+  patchEventTargetMethods(XMLHttpRequestEventTarget.prototype);
+}
 propertyDescriptorPatch(_global);
 patchClass('MutationObserver');
 patchClass('WebKitMutationObserver');
@@ -64,7 +70,7 @@ function patchXHR(window: any) {
   }
 
   function scheduleTask(task: Task) {
-    self[XHR_SCHEDULED] = false;
+    (XMLHttpRequest as any)[XHR_SCHEDULED] = false;
     const data = <XHROptions>task.data;
     // remove existing event listener
     const listener = data.target[XHR_LISTENER];
@@ -73,7 +79,9 @@ function patchXHR(window: any) {
     }
     const newListener = data.target[XHR_LISTENER] = () => {
       if (data.target.readyState === data.target.DONE) {
-        if (!data.aborted && self[XHR_SCHEDULED]) {
+        // sometimes on some browsers XMLHttpRequest will fire onreadystatechange with
+        // readyState=4 multiple times, so we need to check task state here
+        if (!data.aborted && (XMLHttpRequest as any)[XHR_SCHEDULED] && task.state === 'scheduled') {
           task.invoke();
         }
       }
@@ -85,7 +93,7 @@ function patchXHR(window: any) {
       data.target[XHR_TASK] = task;
     }
     sendNative.apply(data.target, data.args);
-    self[XHR_SCHEDULED] = true;
+    (XMLHttpRequest as any)[XHR_SCHEDULED] = true;
     return task;
   }
 
@@ -99,13 +107,13 @@ function patchXHR(window: any) {
     return abortNative.apply(data.target, data.args);
   }
 
-  const openNative =
+  const openNative: Function =
       patchMethod(window.XMLHttpRequest.prototype, 'open', () => function(self: any, args: any[]) {
         self[XHR_SYNC] = args[2] == false;
         return openNative.apply(self, args);
       });
 
-  const sendNative =
+  const sendNative: Function =
       patchMethod(window.XMLHttpRequest.prototype, 'send', () => function(self: any, args: any[]) {
         const zone = Zone.current;
         if (self[XHR_SYNC]) {
@@ -141,4 +149,28 @@ function patchXHR(window: any) {
 /// GEO_LOCATION
 if (_global['navigator'] && _global['navigator'].geolocation) {
   patchPrototype(_global['navigator'].geolocation, ['getCurrentPosition', 'watchPosition']);
+}
+
+// handle unhandled promise rejection
+function findPromiseRejectionHandler(evtName: string) {
+  return function(e: any) {
+    const eventTasks = findEventTask(_global, evtName);
+    eventTasks.forEach(eventTask => {
+      // windows has added unhandledrejection event listener
+      // trigger the event listener
+      const PromiseRejectionEvent = _global['PromiseRejectionEvent'];
+      if (PromiseRejectionEvent) {
+        const evt = new PromiseRejectionEvent(evtName, {promise: e.promise, reason: e.rejection});
+        eventTask.invoke(evt);
+      }
+    });
+  };
+}
+
+if (_global['PromiseRejectionEvent']) {
+  (Zone as any)[zoneSymbol('unhandledPromiseRejectionHandler')] =
+      findPromiseRejectionHandler('unhandledrejection');
+
+  (Zone as any)[zoneSymbol('rejectionHandledHandler')] =
+      findPromiseRejectionHandler('rejectionhandled');
 }

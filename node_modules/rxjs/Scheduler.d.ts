@@ -1,5 +1,9 @@
 import { Action } from './scheduler/Action';
 import { Subscription } from './Subscription';
+export interface IScheduler {
+    now(): number;
+    schedule<T>(work: (this: Action<T>, state?: T) => void, delay?: number, state?: T): Subscription;
+}
 /**
  * An execution context and a data structure to order tasks and schedule their
  * execution. Provides a notion of (potentially virtual) time, through the
@@ -16,7 +20,7 @@ import { Subscription } from './Subscription';
  *
  * @class Scheduler
  */
-export declare class Scheduler {
+export declare class Scheduler implements IScheduler {
     private SchedulerAction;
     static now: () => number;
     constructor(SchedulerAction: typeof Action, now?: () => number);

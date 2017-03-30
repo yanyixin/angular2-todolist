@@ -2,7 +2,7 @@
  * Created by yanmeng on 2017/2/22.
  */
 
-export interface ListConent {
+export interface ListContent {
   id?: number,
   content: string
 }

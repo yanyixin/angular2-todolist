@@ -1,0 +1,11 @@
+<div class="todo-list-wrapper">
+    <h3 class="todo-list-title">Todo List</h3>
+    <ul>
+        <li
+                class="todo-list"
+                *ngFor="let option of options"
+                id="{{option.id}}"
+                (click)="lookDetail(option)"
+        >{{option.content}}</li>
+    </ul>
+</div>

@@ -1,0 +1,32 @@
+.detail-wrapper{
+  width: 300px;
+  margin: 50px auto;
+}
+.nav{
+  width: 100%;
+}
+.nav h3{
+  display: inline-block;
+}
+.nav h3:hover{
+  cursor: pointer;
+}
+.nav h3:last-child{
+  float: right;
+}
+.todos-wrapper{
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.todo-wrapper{
+  padding: 10px;
+}
+.todo-title{
+  width: 50px;
+  text-align: left;
+  display: inline-block;
+}
+.todo-content{
+  display: inline-block;
+  color: pink;
+}

@@ -1,4 +1,4 @@
-import { Scheduler } from '../Scheduler';
+import { IScheduler } from '../Scheduler';
 import { Subscriber } from '../Subscriber';
 import { Observable } from '../Observable';
 import { TeardownLogic } from '../Subscription';
@@ -47,7 +47,7 @@ export declare class EmptyObservable<T> extends Observable<T> {
      * @see {@link of}
      * @see {@link throw}
      *
-     * @param {Scheduler} [scheduler] A {@link Scheduler} to use for scheduling
+     * @param {Scheduler} [scheduler] A {@link IScheduler} to use for scheduling
      * the emission of the complete notification.
      * @return {Observable} An "empty" Observable: emits only the complete
      * notification.
@@ -55,8 +55,8 @@ export declare class EmptyObservable<T> extends Observable<T> {
      * @name empty
      * @owner Observable
      */
-    static create<T>(scheduler?: Scheduler): Observable<T>;
+    static create<T>(scheduler?: IScheduler): Observable<T>;
     static dispatch<T>(arg: DispatchArg<T>): void;
-    constructor(scheduler?: Scheduler);
+    constructor(scheduler?: IScheduler);
     protected _subscribe(subscriber: Subscriber<T>): TeardownLogic;
 }

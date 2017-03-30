@@ -2,27 +2,34 @@
  * Created by yanmeng on 2017/2/22.
  */
 import { Injectable } from "@angular/core";
-import { ListConent } from "../interface/home.types";
+import { ListContent } from "../interface/home.types";
 
-@Injectable()
+@Injectable()  // 该装饰的类依赖了其他的服务
 export class AppService {
-  public todoLists: Array<ListConent> = [{
-    id: 1,
+  public todoLists: Array<ListContent> = [{
+    id: 0,
     content: 'es6'
   },{
-    id: 2,
+    id: 1,
     content: 'React'
   }, {
-    id: 3,
+    id: 2,
     content: 'Angular2'
   }];
 
-  addTodoList(list: ListConent) {
-    console.log('list',list);
+  constructor() {
+
+  }
+
+  addTodoList(list: ListContent) {
     if(!list.id) {
       list.id = this.todoLists.length
     }
     this.todoLists.push(list);
+    console.log('this.todoLists',this.todoLists);
   }
 
+  getTodoDetailById(id: number) {
+    return this.todoLists.filter(todoList => todoList.id === id).pop();
+  }
 }

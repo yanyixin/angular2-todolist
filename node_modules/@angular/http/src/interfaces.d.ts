@@ -47,7 +47,13 @@ export declare abstract class XSRFStrategy {
 export interface RequestOptionsArgs {
     url?: string;
     method?: string | RequestMethod;
-    search?: string | URLSearchParams;
+    /** @deprecated from 4.0.0. Use params instead. */
+    search?: string | URLSearchParams | {
+        [key: string]: any | any[];
+    };
+    params?: string | URLSearchParams | {
+        [key: string]: any | any[];
+    };
     headers?: Headers;
     body?: any;
     withCredentials?: boolean;
@@ -65,11 +71,11 @@ export interface RequestArgs extends RequestOptionsArgs {
  *
  * @experimental
  */
-export declare type ResponseOptionsArgs = {
+export interface ResponseOptionsArgs {
     body?: string | Object | FormData | ArrayBuffer | Blob;
     status?: number;
     statusText?: string;
     headers?: Headers;
     type?: ResponseType;
     url?: string;
-};
+}

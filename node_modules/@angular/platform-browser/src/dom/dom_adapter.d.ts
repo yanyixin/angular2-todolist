@@ -32,9 +32,9 @@ export declare abstract class DomAdapter {
     attrToPropMap: {
         [key: string]: string;
     };
+    abstract contains(nodeA: any, nodeB: any): boolean;
     abstract parse(templateHtml: string): any;
-    abstract query(selector: string): any;
-    abstract querySelector(el: any, selector: string): HTMLElement;
+    abstract querySelector(el: any, selector: string): any;
     abstract querySelectorAll(el: any, selector: string): any[];
     abstract on(el: any, evt: any, listener: any): any;
     abstract onAndCancel(el: any, evt: any, listener: any): Function;
@@ -61,9 +61,9 @@ export declare abstract class DomAdapter {
     abstract removeChild(el: any, node: any): any;
     abstract replaceChild(el: any, newNode: any, oldNode: any): any;
     abstract remove(el: any): Node;
-    abstract insertBefore(el: any, node: any): any;
-    abstract insertAllBefore(el: any, nodes: any): any;
-    abstract insertAfter(el: any, node: any): any;
+    abstract insertBefore(parent: any, ref: any, node: any): any;
+    abstract insertAllBefore(parent: any, ref: any, nodes: any): any;
+    abstract insertAfter(parent: any, el: any, node: any): any;
     abstract setInnerHTML(el: any, value: any): any;
     abstract getText(el: any): string;
     abstract setText(el: any, value: string): any;
@@ -105,10 +105,9 @@ export declare abstract class DomAdapter {
     abstract removeAttributeNS(element: any, ns: string, attribute: string): any;
     abstract templateAwareRoot(el: any): any;
     abstract createHtmlDocument(): HTMLDocument;
-    abstract defaultDoc(): HTMLDocument;
     abstract getBoundingClientRect(el: any): any;
-    abstract getTitle(): string;
-    abstract setTitle(newTitle: string): any;
+    abstract getTitle(doc: Document): string;
+    abstract setTitle(doc: Document, newTitle: string): any;
     abstract elementMatches(n: any, selector: string): boolean;
     abstract isTemplateElement(el: any): boolean;
     abstract isTextNode(node: any): boolean;
@@ -123,10 +122,10 @@ export declare abstract class DomAdapter {
     abstract resolveAndSetHref(element: any, baseUrl: string, href: string): any;
     abstract supportsDOMEvents(): boolean;
     abstract supportsNativeShadowDOM(): boolean;
-    abstract getGlobalEventTarget(target: string): any;
+    abstract getGlobalEventTarget(doc: Document, target: string): any;
     abstract getHistory(): History;
     abstract getLocation(): Location;
-    abstract getBaseHref(): string;
+    abstract getBaseHref(doc: Document): string;
     abstract resetBaseElement(): void;
     abstract getUserAgent(): string;
     abstract setData(element: any, name: string, value: string): any;

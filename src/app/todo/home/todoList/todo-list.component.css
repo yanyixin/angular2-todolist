@@ -1,0 +1,21 @@
+ul, ol ,li{ list-style: none; padding:0;margin:0}
+.todo-list-wrapper{
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  height: auto;
+  margin-top: 30px;
+  padding :10px 0;
+}
+.todo-list-title{
+  padding: 0 20px
+}
+.todo-list{
+  display: block;
+  color: pink;
+  line-height: 30px;
+  padding:6px 20px;
+}
+.todo-list:hover{
+  cursor: pointer;
+  background-color: #f2f2f2;
+}

@@ -5,8 +5,7 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
-import { BaseError } from './facade/errors';
-export declare const MODULE_SUFFIX: string;
+export declare const MODULE_SUFFIX = "";
 export declare function camelCaseToDashCase(input: string): string;
 export declare function dashCaseToCamelCase(input: string): string;
 export declare function splitAtColon(input: string, defaultValues: string[]): string[];
@@ -33,5 +32,7 @@ export declare class SyncAsyncResult<T> {
     asyncResult: Promise<T>;
     constructor(syncResult: T, asyncResult?: Promise<T>);
 }
-export declare class SyntaxError extends BaseError {
-}
+export declare function syntaxError(msg: string): Error;
+export declare function isSyntaxError(error: Error): boolean;
+export declare function escapeRegExp(s: string): string;
+export declare function utf8Encode(str: string): string;

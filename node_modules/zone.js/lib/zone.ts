@@ -295,7 +295,7 @@ interface ZoneType {
   /**
    * Verify that Zone has been correctly patched. Specifically that Promise is zone aware.
    */
-  assertZonePatched();
+  assertZonePatched(): void;
 
   /**
    *  Return the root zone.
@@ -410,7 +410,7 @@ interface ZoneSpec {
   onHasTask?:
       (delegate: ZoneDelegate, current: Zone, target: Zone, hasTaskState: HasTaskState) => void;
 }
-;
+
 
 /**
  *  A delegate when intercepting zone operations.
@@ -463,13 +463,12 @@ type HasTaskState = {
 /**
  * Task type: `microTask`, `macroTask`, `eventTask`.
  */
-type TaskType = string; /* TS v1.8 => "microTask" | "macroTask" | "eventTask" */
+type TaskType = 'microTask'|'macroTask'|'eventTask';
 
 /**
- * Task type: `notScheduled`, `scheduling`, `scheduled`, `running`, `canceling`.
+ * Task type: `notScheduled`, `scheduling`, `scheduled`, `running`, `canceling`, 'unknown'.
  */
-type TaskState =
-    string; /* TS v1.8 => "notScheduled", "scheduling", "scheduled", "running", "canceling" */
+type TaskState = 'notScheduled'|'scheduling'|'scheduled'|'running'|'canceling'|'unknown';
 
 
 /**
@@ -515,7 +514,7 @@ interface Task {
   type: TaskType;
 
   /**
-   * Task state: `notScheduled`, `scheduling`, `scheduled`, `running`, `canceling`.
+   * Task state: `notScheduled`, `scheduling`, `scheduled`, `running`, `canceling`, `unknown`.
    */
   state: TaskState;
 
@@ -560,7 +559,7 @@ interface Task {
    * @type {Zone} The zone which will be used to invoke the `callback`. The Zone is captured
    * at the time of Task creation.
    */
-  zone: Zone;
+  readonly zone: Zone;
 
   /**
    * Number of times the task has been executed, or -1 if canceled.
@@ -576,15 +575,15 @@ interface Task {
 }
 
 interface MicroTask extends Task {
-  /* TS v1.8 => type: 'microTask'; */
+  type: 'microTask';
 }
 
 interface MacroTask extends Task {
-  /* TS v1.8 => type: 'macroTask'; */
+  type: 'macroTask';
 }
 
 interface EventTask extends Task {
-  /* TS v1.8 => type: 'eventTask'; */
+  type: 'eventTask';
 }
 
 /**
@@ -613,9 +612,11 @@ const Zone: ZoneType = (function(global: any) {
   }
 
   const NO_ZONE = {name: 'NO ZONE'};
-  const notScheduled = 'notScheduled', scheduling = 'scheduling', scheduled = 'scheduled',
-        running = 'running', canceling = 'canceling';
-  const microTask = 'microTask', macroTask = 'macroTask', eventTask = 'eventTask';
+  const notScheduled: 'notScheduled' = 'notScheduled', scheduling: 'scheduling' = 'scheduling',
+                      scheduled: 'scheduled' = 'scheduled', running: 'running' = 'running',
+                      canceling: 'canceling' = 'canceling', unknown: 'unknown' = 'unknown';
+  const microTask: 'microTask' = 'microTask', macroTask: 'macroTask' = 'macroTask',
+                   eventTask: 'eventTask' = 'eventTask';
 
   class Zone implements AmbientZone {
     static __symbol__: (name: string) => string = __symbol__;
@@ -736,7 +737,7 @@ const Zone: ZoneType = (function(global: any) {
             'A task can only be run in the zone of creation! (Creation: ' +
             (task.zone || NO_ZONE).name + '; Execution: ' + this.name + ')');
       const reEntryGuard = task.state != running;
-      reEntryGuard && (task as ZoneTask)._transitionTo(running, scheduled);
+      reEntryGuard && (task as ZoneTask<any>)._transitionTo(running, scheduled);
       task.runCount++;
       const previousTask = _currentTask;
       _currentTask = task;
@@ -753,12 +754,17 @@ const Zone: ZoneType = (function(global: any) {
           }
         }
       } finally {
-        if (task.type == eventTask || (task.data && task.data.isPeriodic)) {
-          reEntryGuard && (task as ZoneTask)._transitionTo(scheduled, running, notScheduled);
-        } else {
-          task.runCount = 0;
-          this._updateTaskCount(task as ZoneTask, -1);
-          reEntryGuard && (task as ZoneTask)._transitionTo(notScheduled, running, notScheduled);
+        // if the task's state is notScheduled or unknown, then it has already been cancelled
+        // we should not reset the state to scheduled
+        if (task.state !== notScheduled && task.state !== unknown) {
+          if (task.type == eventTask || (task.data && task.data.isPeriodic)) {
+            reEntryGuard && (task as ZoneTask<any>)._transitionTo(scheduled, running);
+          } else {
+            task.runCount = 0;
+            this._updateTaskCount(task as ZoneTask<any>, -1);
+            reEntryGuard &&
+                (task as ZoneTask<any>)._transitionTo(notScheduled, running, notScheduled);
+          }
         }
         _currentZoneFrame = _currentZoneFrame.parent;
         _currentTask = previousTask;
@@ -766,17 +772,38 @@ const Zone: ZoneType = (function(global: any) {
     }
 
     scheduleTask<T extends Task>(task: T): T {
-      (task as any as ZoneTask)._transitionTo(scheduling, notScheduled);
-      const zoneDelegates: ZoneDelegate[] = [];
-      (task as any as ZoneTask)._zoneDelegates = zoneDelegates;
-      task.zone = this;
-      task = this._zoneDelegate.scheduleTask(this, task) as T;
-      if ((task as any as ZoneTask)._zoneDelegates === zoneDelegates) {
-        // we have to check because internally the delegate can reschedule the task.
-        this._updateTaskCount(task as any as ZoneTask, 1);
+      if (task.zone && task.zone !== this) {
+        // check if the task was rescheduled, the newZone
+        // should not be the children of the original zone
+        let newZone: any = this;
+        while (newZone) {
+          if (newZone === task.zone) {
+            throw Error(`can not reschedule task to ${this
+                            .name} which is descendants of the original zone ${task.zone.name}`);
+          }
+          newZone = newZone.parent;
+        }
       }
-      if ((task as any as ZoneTask).state == scheduling) {
-        (task as any as ZoneTask)._transitionTo(scheduled, scheduling);
+      (task as any as ZoneTask<any>)._transitionTo(scheduling, notScheduled);
+      const zoneDelegates: ZoneDelegate[] = [];
+      (task as any as ZoneTask<any>)._zoneDelegates = zoneDelegates;
+      (task as any as ZoneTask<any>)._zone = this;
+      try {
+        task = this._zoneDelegate.scheduleTask(this, task) as T;
+      } catch (err) {
+        // should set task's state to unknown when scheduleTask throw error
+        // because the err may from reschedule, so the fromState maybe notScheduled
+        (task as any as ZoneTask<any>)._transitionTo(unknown, scheduling, notScheduled);
+        // TODO: @JiaLiPassion, should we check the result from handleError?
+        this._zoneDelegate.handleError(this, err);
+        throw err;
+      }
+      if ((task as any as ZoneTask<any>)._zoneDelegates === zoneDelegates) {
+        // we have to check because internally the delegate can reschedule the task.
+        this._updateTaskCount(task as any as ZoneTask<any>, 1);
+      }
+      if ((task as any as ZoneTask<any>).state == scheduling) {
+        (task as any as ZoneTask<any>)._transitionTo(scheduled, scheduling);
       }
       return task;
     }
@@ -803,15 +830,26 @@ const Zone: ZoneType = (function(global: any) {
     }
 
     cancelTask(task: Task): any {
-      (task as ZoneTask)._transitionTo(canceling, scheduled, running);
-      this._zoneDelegate.cancelTask(this, task);
-      this._updateTaskCount(task as ZoneTask, -1);
-      (task as ZoneTask)._transitionTo(notScheduled, canceling);
+      if (task.zone != this)
+        throw new Error(
+            'A task can only be cancelled in the zone of creation! (Creation: ' +
+            (task.zone || NO_ZONE).name + '; Execution: ' + this.name + ')');
+      (task as ZoneTask<any>)._transitionTo(canceling, scheduled, running);
+      try {
+        this._zoneDelegate.cancelTask(this, task);
+      } catch (err) {
+        // if error occurs when cancelTask, transit the state to unknown
+        (task as ZoneTask<any>)._transitionTo(unknown, canceling);
+        this._zoneDelegate.handleError(this, err);
+        throw err;
+      }
+      this._updateTaskCount(task as ZoneTask<any>, -1);
+      (task as ZoneTask<any>)._transitionTo(notScheduled, canceling);
       task.runCount = 0;
       return task;
     }
 
-    private _updateTaskCount(task: ZoneTask, count: number) {
+    private _updateTaskCount(task: ZoneTask<any>, count: number) {
       const zoneDelegates = task._zoneDelegates;
       if (count == -1) {
         task._zoneDelegates = null;
@@ -839,7 +877,7 @@ const Zone: ZoneType = (function(global: any) {
 
     private _taskCounts: {microTask: number,
                           macroTask: number,
-                          eventTask: number} = {microTask: 0, macroTask: 0, eventTask: 0};
+                          eventTask: number} = {'microTask': 0, 'macroTask': 0, 'eventTask': 0};
 
     private _parentDelegate: ZoneDelegate;
 
@@ -985,14 +1023,14 @@ const Zone: ZoneType = (function(global: any) {
     }
 
     scheduleTask(targetZone: Zone, task: Task): Task {
-      let returnTask: ZoneTask = task as ZoneTask;
+      let returnTask: ZoneTask<any> = task as ZoneTask<any>;
       if (this._scheduleTaskZS) {
         if (this._hasTaskZS) {
           returnTask._zoneDelegates.push(this._hasTaskDlgtOwner);
         }
         returnTask = this._scheduleTaskZS.onScheduleTask(
-            this._scheduleTaskDlgt, this._scheduleTaskCurrZone, targetZone, task) as ZoneTask;
-        if (!returnTask) returnTask = task as ZoneTask;
+            this._scheduleTaskDlgt, this._scheduleTaskCurrZone, targetZone, task) as ZoneTask<any>;
+        if (!returnTask) returnTask = task as ZoneTask<any>;
       } else {
         if (task.scheduleFn) {
           task.scheduleFn(task);
@@ -1014,25 +1052,34 @@ const Zone: ZoneType = (function(global: any) {
     }
 
     cancelTask(targetZone: Zone, task: Task): any {
-      let value;
+      let value: any;
       if (this._cancelTaskZS) {
         value = this._cancelTaskZS.onCancelTask(
             this._cancelTaskDlgt, this._cancelTaskCurrZone, targetZone, task);
       } else {
+        if (!task.cancelFn) {
+          throw Error('Task is not cancelable');
+        }
         value = task.cancelFn(task);
       }
       return value;
     }
 
     hasTask(targetZone: Zone, isEmpty: HasTaskState) {
-      return this._hasTaskZS &&
-          this._hasTaskZS.onHasTask(this._hasTaskDlgt, this._hasTaskCurrZone, targetZone, isEmpty);
+      // hasTask should not throw error so other ZoneDelegate
+      // can still trigger hasTask callback
+      try {
+        return this._hasTaskZS &&
+            this._hasTaskZS.onHasTask(
+                this._hasTaskDlgt, this._hasTaskCurrZone, targetZone, isEmpty);
+      } catch (err) {
+      }
     }
 
     _updateTaskCount(type: TaskType, count: number) {
       const counts = this._taskCounts;
-      const prev = counts[type];
-      const next = counts[type] = prev + count;
+      const prev = (counts as any)[type];
+      const next = (counts as any)[type] = prev + count;
       if (next < 0) {
         throw new Error('More tasks executed then were scheduled.');
       }
@@ -1050,21 +1097,21 @@ const Zone: ZoneType = (function(global: any) {
   }
 
 
-  class ZoneTask implements Task {
-    public type: TaskType;
+  class ZoneTask<T extends TaskType> implements Task {
+    public type: T;
     public source: string;
     public invoke: Function;
     public callback: Function;
     public data: TaskData;
     public scheduleFn: (task: Task) => void;
     public cancelFn: (task: Task) => void;
-    public zone: Zone = null;
+    _zone: Zone = null;
     public runCount: number = 0;
     _zoneDelegates: ZoneDelegate[] = null;
     _state: TaskState = 'notScheduled';
 
     constructor(
-        type: TaskType, source: string, callback: Function, options: TaskData,
+        type: T, source: string, callback: Function, options: TaskData,
         scheduleFn: (task: Task) => void, cancelFn: (task: Task) => void) {
       this.type = type;
       this.source = source;
@@ -1087,6 +1134,10 @@ const Zone: ZoneType = (function(global: any) {
       };
     }
 
+    get zone(): Zone {
+      return this._zone;
+    }
+
     get state(): TaskState {
       return this._state;
     }
@@ -1102,7 +1153,6 @@ const Zone: ZoneType = (function(global: any) {
           this._zoneDelegates = null;
         }
       } else {
-        debugger;
         throw new Error(
             `${this.type} '${this.source}': can not transition to '${toState
                                         }', expecting state '${fromState1}'${fromState2 ?
@@ -1187,6 +1237,9 @@ const Zone: ZoneType = (function(global: any) {
   }
 
   function consoleError(e: any) {
+    if ((Zone as any)[__symbol__('ignoreConsoleErrorUncaughtError')]) {
+      return;
+    }
     const rejection = e && e.rejection;
     if (rejection) {
       console.error(
@@ -1196,6 +1249,17 @@ const Zone: ZoneType = (function(global: any) {
           rejection instanceof Error ? rejection.stack : undefined);
     }
     console.error(e);
+  }
+
+  function handleUnhandledRejection(e: any) {
+    consoleError(e);
+    try {
+      const handler = (Zone as any)[__symbol__('unhandledPromiseRejectionHandler')];
+      if (handler && typeof handler === 'function') {
+        handler.apply(this, [e]);
+      }
+    } catch (err) {
+    }
   }
 
   function drainMicroTaskQueue() {
@@ -1221,7 +1285,7 @@ const Zone: ZoneType = (function(global: any) {
               throw uncaughtPromiseError;
             });
           } catch (error) {
-            consoleError(error);
+            handleUnhandledRejection(error);
           }
         }
       }
@@ -1244,7 +1308,7 @@ const Zone: ZoneType = (function(global: any) {
   const symbolState: string = __symbol__('state');
   const symbolValue: string = __symbol__('value');
   const source: string = 'Promise.then';
-  const UNRESOLVED = null;
+  const UNRESOLVED: null = null;
   const RESOLVED = true;
   const REJECTED = false;
   const REJECTED_NO_CATCH = 0;
@@ -1263,7 +1327,7 @@ const Zone: ZoneType = (function(global: any) {
   const once = function() {
     let wasCalled = false;
 
-    return function wrapper(wrappedFunction) {
+    return function wrapper(wrappedFunction: Function) {
       return function() {
         if (wasCalled) {
           return;
@@ -1281,9 +1345,9 @@ const Zone: ZoneType = (function(global: any) {
     if (promise === value) {
       throw new TypeError('Promise resolved with itself');
     }
-    if (promise[symbolState] === UNRESOLVED) {
+    if ((promise as any)[symbolState] === UNRESOLVED) {
       // should only get value.then once based on promise spec.
-      let then = null;
+      let then: any = null;
       try {
         if (typeof value === 'object' || typeof value === 'function') {
           then = value && value.then;
@@ -1297,9 +1361,9 @@ const Zone: ZoneType = (function(global: any) {
       // if (value instanceof ZoneAwarePromise) {
       if (state !== REJECTED && value instanceof ZoneAwarePromise &&
           value.hasOwnProperty(symbolState) && value.hasOwnProperty(symbolValue) &&
-          value[symbolState] !== UNRESOLVED) {
+          (value as any)[symbolState] !== UNRESOLVED) {
         clearRejectedNoCatch(<Promise<any>>value);
-        resolvePromise(promise, value[symbolState], value[symbolValue]);
+        resolvePromise(promise, (value as any)[symbolState], (value as any)[symbolValue]);
       } else if (state !== REJECTED && typeof then === 'function') {
         try {
           then.apply(value, [
@@ -1311,15 +1375,21 @@ const Zone: ZoneType = (function(global: any) {
           })();
         }
       } else {
-        promise[symbolState] = state;
-        const queue = promise[symbolValue];
-        promise[symbolValue] = value;
+        (promise as any)[symbolState] = state;
+        const queue = (promise as any)[symbolValue];
+        (promise as any)[symbolValue] = value;
+
+        // record task information in value when error occurs, so we can
+        // do some additional work such as render longStackTrace
+        if (state === REJECTED && value instanceof Error) {
+          (value as any)[__symbol__('currentTask')] = Zone.currentTask;
+        }
 
         for (let i = 0; i < queue.length;) {
           scheduleResolveOrReject(promise, queue[i++], queue[i++], queue[i++], queue[i++]);
         }
         if (queue.length == 0 && state == REJECTED) {
-          promise[symbolState] = REJECTED_NO_CATCH;
+          (promise as any)[symbolState] = REJECTED_NO_CATCH;
           try {
             throw new Error(
                 'Uncaught (in promise): ' + value +
@@ -1341,12 +1411,23 @@ const Zone: ZoneType = (function(global: any) {
   }
 
   function clearRejectedNoCatch(promise: ZoneAwarePromise<any>): void {
-    if (promise[symbolState] === REJECTED_NO_CATCH) {
-      promise[symbolState] = REJECTED;
+    if ((promise as any)[symbolState] === REJECTED_NO_CATCH) {
+      // if the promise is rejected no catch status
+      // and queue.length > 0, means there is a error handler
+      // here to handle the rejected promise, we should trigger
+      // windows.rejectionhandled eventHandler or nodejs rejectionHandled
+      // eventHandler
+      try {
+        const handler = (Zone as any)[__symbol__('rejectionHandledHandler')];
+        if (handler && typeof handler === 'function') {
+          handler.apply(this, [{rejection: (promise as any)[symbolValue], promise: promise}]);
+        }
+      } catch (err) {
+      }
+      (promise as any)[symbolState] = REJECTED;
       for (let i = 0; i < _uncaughtPromiseErrors.length; i++) {
         if (promise === _uncaughtPromiseErrors[i].promise) {
           _uncaughtPromiseErrors.splice(i, 1);
-          break;
         }
       }
     }
@@ -1356,12 +1437,13 @@ const Zone: ZoneType = (function(global: any) {
       promise: ZoneAwarePromise<any>, zone: AmbientZone, chainPromise: ZoneAwarePromise<any>,
       onFulfilled?: (value: R) => U, onRejected?: (error: any) => U): void {
     clearRejectedNoCatch(promise);
-    const delegate = promise[symbolState] ?
+    const delegate = (promise as any)[symbolState] ?
         (typeof onFulfilled === 'function') ? onFulfilled : forwardResolution :
         (typeof onRejected === 'function') ? onRejected : forwardRejection;
     zone.scheduleMicroTask(source, () => {
       try {
-        resolvePromise(chainPromise, true, zone.run(delegate, undefined, [promise[symbolValue]]));
+        resolvePromise(
+            chainPromise, true, zone.run(delegate, undefined, [(promise as any)[symbolValue]]));
       } catch (error) {
         resolvePromise(chainPromise, false, error);
       }
@@ -1387,10 +1469,10 @@ const Zone: ZoneType = (function(global: any) {
       let promise: any = new this((res, rej) => {
         [resolve, reject] = [res, rej];
       });
-      function onResolve(value) {
+      function onResolve(value: any) {
         promise && (promise = null || resolve(value));
       }
-      function onReject(error) {
+      function onReject(error: any) {
         promise && (promise = null || reject(error));
       }
 
@@ -1403,7 +1485,7 @@ const Zone: ZoneType = (function(global: any) {
       return promise;
     }
 
-    static all<R>(values): Promise<R> {
+    static all<R>(values: any): Promise<R> {
       let resolve: (v: any) => void;
       let reject: (v: any) => void;
       let promise = new this((res, rej) => {
@@ -1411,13 +1493,13 @@ const Zone: ZoneType = (function(global: any) {
         reject = rej;
       });
       let count = 0;
-      const resolvedValues = [];
+      const resolvedValues: any[] = [];
       for (let value of values) {
         if (!isThenable(value)) {
           value = this.resolve(value);
         }
         value.then(
-            ((index) => (value) => {
+            ((index) => (value: any) => {
               resolvedValues[index] = value;
               count--;
               if (!count) {
@@ -1438,8 +1520,8 @@ const Zone: ZoneType = (function(global: any) {
       if (!(promise instanceof ZoneAwarePromise)) {
         throw new Error('Must be an instanceof Promise.');
       }
-      promise[symbolState] = UNRESOLVED;
-      promise[symbolValue] = [];  // queue;
+      (promise as any)[symbolState] = UNRESOLVED;
+      (promise as any)[symbolValue] = [];  // queue;
       try {
         executor && executor(makeResolver(promise, RESOLVED), makeResolver(promise, REJECTED));
       } catch (error) {
@@ -1452,8 +1534,8 @@ const Zone: ZoneType = (function(global: any) {
         onRejected?: (error: any) => U | PromiseLike<U>): Promise<R> {
       const chainPromise: Promise<R> = new (this.constructor as typeof ZoneAwarePromise)(null);
       const zone = Zone.current;
-      if (this[symbolState] == UNRESOLVED) {
-        (<any[]>this[symbolValue]).push(zone, chainPromise, onFulfilled, onRejected);
+      if ((this as any)[symbolState] == UNRESOLVED) {
+        (<any[]>(this as any)[symbolValue]).push(zone, chainPromise, onFulfilled, onRejected);
       } else {
         scheduleResolveOrReject(this, zone, chainPromise, onFulfilled, onRejected);
       }
@@ -1476,22 +1558,22 @@ const Zone: ZoneType = (function(global: any) {
 
   const symbolThenPatched = __symbol__('thenPatched');
 
-  function patchThen(Ctor) {
+  function patchThen(Ctor: Function) {
     const proto = Ctor.prototype;
     const originalThen = proto.then;
     // Keep a reference to the original method.
     proto[symbolThen] = originalThen;
 
-    Ctor.prototype.then = function(onResolve, onReject) {
+    Ctor.prototype.then = function(onResolve: any, onReject: any) {
       const wrapped = new ZoneAwarePromise((resolve, reject) => {
         originalThen.call(this, resolve, reject);
       });
       return wrapped.then(onResolve, onReject);
     };
-    Ctor[symbolThenPatched] = true;
+    (Ctor as any)[symbolThenPatched] = true;
   }
 
-  function zoneify(fn) {
+  function zoneify(fn: Function) {
     return function() {
       let resultPromise = fn.apply(this, arguments);
       if (resultPromise instanceof ZoneAwarePromise) {
@@ -1515,7 +1597,7 @@ const Zone: ZoneType = (function(global: any) {
   }
 
   // This is not part of public API, but it is usefull for tests, so we expose it.
-  Promise[Zone.__symbol__('uncaughtPromiseErrors')] = _uncaughtPromiseErrors;
+  (Promise as any)[Zone.__symbol__('uncaughtPromiseErrors')] = _uncaughtPromiseErrors;
 
   /*
    * This code patches Error so that:
@@ -1523,198 +1605,123 @@ const Zone: ZoneType = (function(global: any) {
    *   - It Shows the associated Zone for reach frame.
    */
 
-  enum FrameType {
+  const enum FrameType {
     /// Skip this frame when printing out stack
     blackList,
     /// This frame marks zone transition
     transition
   }
 
+  const blacklistedStackFramesSymbol = Zone.__symbol__('blacklistedStackFrames');
   const NativeError = global[__symbol__('Error')] = global.Error;
   // Store the frames which should be removed from the stack frames
   const blackListedStackFrames: {[frame: string]: FrameType} = {};
   // We must find the frame where Error was created, otherwise we assume we don't understand stack
-  let zoneAwareFrame: string;
+  let zoneAwareFrame1: string;
+  let zoneAwareFrame2: string;
+
   global.Error = ZoneAwareError;
-  // How should the stack frames be parsed.
-  let frameParserStrategy = null;
   const stackRewrite = 'stackRewrite';
-
-  // fix #595, create property descriptor
-  // for error properties
-  const createProperty = function(props, key) {
-    // if property is already defined, skip it.
-    if (props[key]) {
-      return;
-    }
-    // define a local property
-    // in case error property is not settable
-    const name = __symbol__(key);
-    props[key] = {
-      configurable: true,
-      enumerable: true,
-      get: function() {
-        // if local property has no value
-        // use internal error's property value
-        if (!this[name]) {
-          const error = this[__symbol__('error')];
-          if (error) {
-            this[name] = error[key];
-          }
-        }
-        return this[name];
-      },
-      set: function(value) {
-        // setter will set value to local property value
-        this[name] = value;
-      }
-    };
-  };
-
-  // fix #595, create property descriptor
-  // for error method properties
-  const createMethodProperty = function(props, key) {
-    if (props[key]) {
-      return;
-    }
-    props[key] = {
-      configurable: true,
-      enumerable: true,
-      writable: true,
-      value: function() {
-        const error = this[__symbol__('error')];
-        let errorMethod = (error && error[key]) || this[key];
-        if (errorMethod) {
-          return errorMethod.apply(error, arguments);
-        }
-      }
-    };
-  };
-
-  const createErrorProperties = function() {
-    const props = Object.create(null);
-
-    const error = new NativeError();
-    let keys = Object.getOwnPropertyNames(error);
-    for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
-      // Avoid bugs when hasOwnProperty is shadowed
-      if (Object.prototype.hasOwnProperty.call(error, key)) {
-        createProperty(props, key);
-      }
-    }
-
-    const proto = NativeError.prototype;
-    if (proto) {
-      let pKeys = Object.getOwnPropertyNames(proto);
-      for (let i = 0; i < pKeys.length; i++) {
-        const key = pKeys[i];
-        // skip constructor
-        if (key !== 'constructor' && key !== 'toString' && key !== 'toSource') {
-          createProperty(props, key);
-        }
-      }
-    }
-
-    // some other properties are not
-    // in NativeError
-    createProperty(props, 'originalStack');
-    createProperty(props, 'zoneAwareStack');
-
-    // define toString, toSource as method property
-    createMethodProperty(props, 'toString');
-    createMethodProperty(props, 'toSource');
-    return props;
-  };
-
-  const errorProperties = createErrorProperties();
-
-  // for derived Error class which extends ZoneAwareError
-  // we should not override the derived class's property
-  // so we create a new props object only copy the properties
-  // from errorProperties which not exist in derived Error's prototype
-  const getErrorPropertiesForPrototype = function(prototype) {
-    // if the prototype is ZoneAwareError.prototype
-    // we just return the prebuilt errorProperties.
-    if (prototype === ZoneAwareError.prototype) {
-      return errorProperties;
-    }
-    const newProps = Object.create(null);
-    const cKeys = Object.getOwnPropertyNames(errorProperties);
-    const keys = Object.getOwnPropertyNames(prototype);
-    cKeys.forEach(cKey => {
-      if (keys.filter(key => {
-                return key === cKey;
-              })
-              .length === 0) {
-        newProps[cKey] = errorProperties[cKey];
-      }
-    });
-
-    return newProps;
-  };
 
   /**
    * This is ZoneAwareError which processes the stack frame and cleans up extra frames as well as
    * adds zone information to it.
    */
-  function ZoneAwareError() {
-    // make sure we have a valid this
-    // if this is undefined(call Error without new) or this is global
-    // or this is some other objects, we should force to create a
-    // valid ZoneAwareError by call Object.create()
-    if (!(this instanceof ZoneAwareError)) {
-      return ZoneAwareError.apply(Object.create(ZoneAwareError.prototype), arguments);
-    }
-    // Create an Error.
+  function ZoneAwareError(): Error {
+    // We always have to return native error otherwise the browser console will not work.
     let error: Error = NativeError.apply(this, arguments);
-    this[__symbol__('error')] = error;
-
+    if (!error.stack) {
+      // in IE, the error.stack will be undefined
+      // when error was constructed, it will only
+      // be available when throw
+      try {
+        throw error;
+      } catch (err) {
+        error = err;
+      }
+    }
     // Save original stack trace
-    error.originalStack = error.stack;
+    const originalStack = (error as any)['originalStack'] = error.stack;
 
     // Process the stack trace and rewrite the frames.
-    if (ZoneAwareError[stackRewrite] && error.originalStack) {
-      let frames: string[] = error.originalStack.split('\n');
+    if ((ZoneAwareError as any)[stackRewrite] && originalStack) {
+      let frames: string[] = originalStack.split('\n');
       let zoneFrame = _currentZoneFrame;
       let i = 0;
       // Find the first frame
-      while (frames[i] !== zoneAwareFrame && i < frames.length) {
+      while (!(frames[i] === zoneAwareFrame1 || frames[i] === zoneAwareFrame2) &&
+             i < frames.length) {
         i++;
       }
       for (; i < frames.length && zoneFrame; i++) {
         let frame = frames[i];
         if (frame.trim()) {
-          let frameType =
-              blackListedStackFrames.hasOwnProperty(frame) && blackListedStackFrames[frame];
-          if (frameType === FrameType.blackList) {
-            frames.splice(i, 1);
-            i--;
-          } else if (frameType === FrameType.transition) {
-            if (zoneFrame.parent) {
-              // This is the special frame where zone changed. Print and process it accordingly
-              frames[i] += ` [${zoneFrame.parent.zone.name} => ${zoneFrame.zone.name}]`;
-              zoneFrame = zoneFrame.parent;
-            } else {
-              zoneFrame = null;
-            }
-          } else {
-            frames[i] += ` [${zoneFrame.zone.name}]`;
+          switch (blackListedStackFrames[frame]) {
+            case FrameType.blackList:
+              frames.splice(i, 1);
+              i--;
+              break;
+            case FrameType.transition:
+              if (zoneFrame.parent) {
+                // This is the special frame where zone changed. Print and process it accordingly
+                frames[i] += ` [${zoneFrame.parent.zone.name} => ${zoneFrame.zone.name}]`;
+                zoneFrame = zoneFrame.parent;
+              } else {
+                zoneFrame = null;
+              }
+              break;
+            default:
+              frames[i] += ` [${zoneFrame.zone.name}]`;
           }
         }
       }
-      error.stack = error.zoneAwareStack = frames.join('\n');
+      try {
+        error.stack = error.zoneAwareStack = frames.join('\n');
+      } catch (e) {
+        // ignore as some browsers don't allow overriding of stack
+      }
     }
-    // use defineProperties here instead of copy property value
-    // because of issue #595 which will break angular2.
-    Object.defineProperties(this, getErrorPropertiesForPrototype(Object.getPrototypeOf(this)));
-    return this;
+
+    if (this instanceof NativeError && this.constructor != NativeError) {
+      // We got called with a `new` operator AND we are subclass of ZoneAwareError
+      // in that case we have to copy all of our properties to `this`.
+      Object.keys(error).concat('stack', 'message').forEach((key) => {
+        if ((error as any)[key] !== undefined) {
+          try {
+            this[key] = (error as any)[key];
+          } catch (e) {
+            // ignore the assignment in case it is a setter and it throws.
+          }
+        }
+      });
+      return this;
+    }
+    return error;
   }
 
   // Copy the prototype so that instanceof operator works as expected
   ZoneAwareError.prototype = NativeError.prototype;
-  ZoneAwareError[Zone.__symbol__('blacklistedStackFrames')] = blackListedStackFrames;
-  ZoneAwareError[stackRewrite] = false;
+  (ZoneAwareError as any)[blacklistedStackFramesSymbol] = blackListedStackFrames;
+  (ZoneAwareError as any)[stackRewrite] = false;
+
+  // those properties need special handling
+  const specialPropertyNames = ['stackTraceLimit', 'captureStackTrace', 'prepareStackTrace'];
+  // those properties of NativeError should be set to ZoneAwareError
+  const nativeErrorProperties = Object.keys(NativeError);
+  if (nativeErrorProperties) {
+    nativeErrorProperties.forEach(prop => {
+      if (specialPropertyNames.filter(sp => sp === prop).length === 0) {
+        Object.defineProperty(ZoneAwareError, prop, {
+          get: function() {
+            return NativeError[prop];
+          },
+          set: function(value) {
+            NativeError[prop] = value;
+          }
+        });
+      }
+    });
+  }
 
   if (NativeError.hasOwnProperty('stackTraceLimit')) {
     // Extend default stack limit as we will be removing few frames.
@@ -1749,7 +1756,8 @@ const Zone: ZoneType = (function(global: any) {
       if (!value || typeof value !== 'function') {
         return NativeError.prepareStackTrace = value;
       }
-      return NativeError.prepareStackTrace = function(error, structuredStackTrace) {
+      return NativeError.prepareStackTrace = function(
+                 error: Error, structuredStackTrace: {getFunctionName: Function}[]) {
         // remove additional stack information from ZoneAwareError.captureStackTrace
         if (structuredStackTrace) {
           for (let i = 0; i < structuredStackTrace.length; i++) {
@@ -1766,7 +1774,7 @@ const Zone: ZoneType = (function(global: any) {
     }
   });
 
-  // Now we need to populet the `blacklistedStackFrames` as well as find the
+  // Now we need to populate the `blacklistedStackFrames` as well as find the
   // run/runGuraded/runTask frames. This is done by creating a detect zone and then threading
   // the execution through all of the above methods so that we can look at the stack trace and
   // find the frames of interest.
@@ -1789,8 +1797,8 @@ const Zone: ZoneType = (function(global: any) {
               // This check makes sure that we don't filter frames on name only (must have
               // linenumber)
               if (/:\d+:\d+/.test(frame)) {
-                // Get rid of the path so that we don't accidintely find function name in path.
-                // In chrome the seperator is `(` and `@` in FF and safari
+                // Get rid of the path so that we don't accidentally find function name in path.
+                // In chrome the separator is `(` and `@` in FF and safari
                 // Chrome: at Zone.run (zone.js:100)
                 // Chrome: at Zone.run (http://localhost:9876/base/build/lib/zone.js:100:24)
                 // FireFox: Zone.prototype.run@http://localhost:9876/base/build/lib/zone.js:101:24
@@ -1798,7 +1806,9 @@ const Zone: ZoneType = (function(global: any) {
                 let fnName: string = frame.split('(')[0].split('@')[0];
                 let frameType = FrameType.transition;
                 if (fnName.indexOf('ZoneAwareError') !== -1) {
-                  zoneAwareFrame = frame;
+                  zoneAwareFrame1 = frame;
+                  zoneAwareFrame2 = frame.replace('Error.', '');
+                  blackListedStackFrames[zoneAwareFrame2] = FrameType.blackList;
                 }
                 if (fnName.indexOf('runGuarded') !== -1) {
                   runGuardedFrame = true;
@@ -1812,7 +1822,7 @@ const Zone: ZoneType = (function(global: any) {
                 blackListedStackFrames[frame] = frameType;
                 // Once we find all of the frames we can stop looking.
                 if (runFrame && runGuardedFrame && runTaskFrame) {
-                  ZoneAwareError[stackRewrite] = true;
+                  (ZoneAwareError as any)[stackRewrite] = true;
                   break;
                 }
               }
@@ -1823,10 +1833,13 @@ const Zone: ZoneType = (function(global: any) {
   }) as Zone;
   // carefully constructor a stack frame which contains all of the frames of interest which
   // need to be detected and blacklisted.
+
+  // carefully constructor a stack frame which contains all of the frames of interest which
+  // need to be detected and blacklisted.
   let detectRunFn = () => {
     detectZone.run(() => {
       detectZone.runGuarded(() => {
-        throw new Error('blacklistStackFrames');
+        throw new (ZoneAwareError as any)(ZoneAwareError, NativeError);
       });
     });
   };
@@ -1834,4 +1847,4 @@ const Zone: ZoneType = (function(global: any) {
   detectZone.runTask(detectZone.scheduleMacroTask('detect', detectRunFn, null, () => null, null));
 
   return global['Zone'] = Zone;
-})(typeof window === 'object' && window || typeof self === 'object' && self || global);
+})(typeof window !== 'undefined' && window || typeof self !== 'undefined' && self || global);

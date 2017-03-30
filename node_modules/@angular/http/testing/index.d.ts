@@ -8,6 +8,6 @@
 /**
  * @module
  * @description
- * Entry point for all public APIs of the platform-server/testing package.
+ * Entry point for all public APIs of the http/testing package.
  */
-export * from './mock_backend';
+export * from './src/testing';

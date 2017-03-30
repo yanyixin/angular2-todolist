@@ -1,4 +1,4 @@
-import { Scheduler } from '../Scheduler';
+import { IScheduler } from '../Scheduler';
 import { Observable } from '../Observable';
 /**
  * @param {number} due
@@ -7,4 +7,4 @@ import { Observable } from '../Observable';
  * @method timeout
  * @owner Observable
  */
-export declare function timeout<T>(this: Observable<T>, due: number | Date, scheduler?: Scheduler): Observable<T>;
+export declare function timeout<T>(this: Observable<T>, due: number | Date, scheduler?: IScheduler): Observable<T>;
