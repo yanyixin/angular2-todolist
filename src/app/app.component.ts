@@ -12,7 +12,6 @@ export class AppComponent {
   constructor() {
     console.log('装饰器', this);
   }
-
 }
 
 

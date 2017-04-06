@@ -4,6 +4,7 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
 import { Router } from '@angular/router';
 import { ListContent } from "../../../interface/home.types";
+import { AppService } from "../../../service/app.service";
 
 @Component({
   selector   : 'todo-list',
@@ -11,22 +12,17 @@ import { ListContent } from "../../../interface/home.types";
   styleUrls: ['todo-list.component.css']
 })
 export class TodoListComponent implements OnInit{
-  @Input() options: Array<ListContent>;
-
-  @Output() checkoutDetail = new EventEmitter();
-  constructor( private router:Router) {
-
+  private options: Array<ListContent>;
+  constructor( private router:Router,private _homeService: AppService) {
+    this._homeService.todoListService$.subscribe((e:any) => {
+      this.options  = e;
+    })
   }
   ngOnInit() {
-    console.log(this.options);
+    this.options  = this._homeService.getTodos();
   }
 
-  // lookDetail(value: ListContent) {
-  //   this.checkoutDetail.emit(value);
-  //   this.router.navigate(['todo/detail'])
-  // }
   lookDetail(value: ListContent) {
-    console.log(value);
     this.router.navigate(['todo/detail',value.id])
   }
 }

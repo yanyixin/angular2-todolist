@@ -10,25 +10,16 @@ import { AppService } from "../../../service/app.service";
     <input 
         class="add-input" 
         type="text" 
-        (keyup.enter)="addOption($event)">`,
+        (keyup.enter)="addTodo($event)">`,
   styleUrls: ['add.component.css'],
-  providers: [AppService]
 })
 export class AddComponent {
-  @Output() add = new EventEmitter<string>();
-
   constructor(private _homeService: AppService) {
   }
 
-  addOption(e: any) {
-    // console.log(this.add);
+  addTodo(e: any) {
     // this.add.emit(e.target.value);
-    // console.log('e',e.target.value);
     this._homeService.addTodoList({content: e.target.value});
     e.target.value = '';
-  }
-
-  checkName() {
-
   }
 }

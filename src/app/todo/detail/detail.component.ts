@@ -23,10 +23,8 @@ export class DetailComponent implements OnInit{
   ){}
 
   ngOnInit() {
-    // this.options = this._homeService.todoLists;
     let todoId = +this.route.snapshot.params['id'];
     this.options = this._appService.getTodoDetailById(todoId);
-    console.log('this.options',this.options);
   }
 
   goTodoList() {

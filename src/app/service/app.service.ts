@@ -3,17 +3,21 @@
  */
 import { Injectable } from "@angular/core";
 import { ListContent } from "../interface/home.types";
+import { Subject, BehaviorSubject } from "rxjs";
 
 @Injectable()  // 该装饰的类依赖了其他的服务
 export class AppService {
+  private todoListService: BehaviorSubject<any> = new BehaviorSubject<any>('');
+  public todoListService$ = this.todoListService.asObservable();
+
   public todoLists: Array<ListContent> = [{
-    id: 0,
+    id     : 0,
     content: 'es6'
-  },{
-    id: 1,
+  }, {
+    id     : 1,
     content: 'React'
   }, {
-    id: 2,
+    id     : 2,
     content: 'Angular2'
   }];
 
@@ -21,12 +25,18 @@ export class AppService {
 
   }
 
+
+
   addTodoList(list: ListContent) {
-    if(!list.id) {
+    if (!list.id) {
       list.id = this.todoLists.length
     }
     this.todoLists.push(list);
-    console.log('this.todoLists',this.todoLists);
+    this.todoListService.next(this.todoLists);
+  }
+
+  getTodos() {
+    return this.todoLists;
   }
 
   getTodoDetailById(id: number) {

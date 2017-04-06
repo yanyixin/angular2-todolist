@@ -4,15 +4,20 @@
 }
 .nav{
   width: 100%;
+  overflow : hidden;
+  margin-bottom: 20px;
 }
-.nav h3{
+.nav a{
   display: inline-block;
+  text-decoration: none;
+  color: #333;
+  padding: 2px 8px;
 }
-.nav h3:hover{
-  cursor: pointer;
-}
-.nav h3:last-child{
+.go-list{
   float: right;
+  display : inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 .todos-wrapper{
   border: 1px solid #ccc;
