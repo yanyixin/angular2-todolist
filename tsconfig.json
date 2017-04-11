@@ -9,10 +9,7 @@
     "experimentalDecorators": true, // 是否启用实验性装饰器特性
     "noImplicitAny": true,
     "lib": ["dom", "es6"],
-    "suppressImplicitAnyIndexErrors": true,
-    "typeRoots": [
-      "node_modules/@types"  // 指定第三方库的类型定义文件的存放位置
-    ]
+    "suppressImplicitAnyIndexErrors": true
   },
   "exclude": [
     "node_modules",

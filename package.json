@@ -19,7 +19,7 @@
     "@angular/animations": "~4.0.1",
     "@angular/common": "~4.0.0",
     "@angular/compiler": "~4.0.0",
-    "@angular/core": "~4.0.0",
+    "@angular/core": "^4.0.1",
     "@angular/forms": "~4.0.1",
     "@angular/http": "~4.0.1",
     "core-js": "^2.4.1",
@@ -57,6 +57,5 @@
     "webpack-dev-server": "2.2.0-rc.0",
     "webpack-merge": "^2.4.0",
     "typescript": "^2.2.2"
-
   }
 }

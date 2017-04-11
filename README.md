@@ -1,4 +1,4 @@
-.
+```
 ├── config
 │   ├── helpers.js              ────── 
 │   ├── webpack.common.js       ────── 公共的配置文件
@@ -43,5 +43,4 @@
 ├── README.md   
 ├── tsconfig.json       ────── 配置了TypeScript编译器的编译参数
 └── webpack.config.js   ──────  webpack配置文件
-
-10 directories, 34 files
+```
