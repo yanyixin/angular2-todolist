@@ -1,4 +1,6 @@
 ```
+
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/angular2-todolist)
 ├── config
 │   ├── helpers.js              ────── 
 │   ├── webpack.common.js       ────── 公共的配置文件
